@@ -28,6 +28,8 @@ public class ExceptAIClient {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-API-Key", properties.getApiKey());
 
+            log.info(headers.get("X-API-Key").toString());
+
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
             restTemplate.postForEntity(
