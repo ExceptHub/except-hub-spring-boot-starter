@@ -1,4 +1,4 @@
-package ai.except.starter;
+package dev.excepthub.starter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,9 +11,9 @@ import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
-public class ExceptAIClient {
+public class ExceptHubClient {
 
-    private final ExceptAIProperties properties;
+    private final ExceptHubProperties properties;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void sendError(Exception exception, String stackTrace, Map<String, Object> httpContext) {
@@ -38,10 +38,10 @@ public class ExceptAIClient {
                     String.class
             );
 
-            log.debug("✅ Error sent to ExceptAI");
+            log.debug("✅ Error sent to ExceptHub");
 
         } catch (Exception e) {
-            log.error("❌ Failed to send error to ExceptAI: {}", e.getMessage());
+            log.error("❌ Failed to send error to ExceptHub: {}", e.getMessage());
         }
     }
 
@@ -71,10 +71,10 @@ public class ExceptAIClient {
                     String.class
             );
 
-            log.debug("✅ Scheduled task error sent to ExceptAI: {} - {}", scheduledTaskClass, exception.getClass().getSimpleName());
+            log.debug("✅ Scheduled task error sent to ExceptHub: {} - {}", scheduledTaskClass, exception.getClass().getSimpleName());
 
         } catch (Exception e) {
-            log.error("❌ Failed to send scheduled task error to ExceptAI: {}", e.getMessage());
+            log.error("❌ Failed to send scheduled task error to ExceptHub: {}", e.getMessage());
         }
     }
 
@@ -105,9 +105,9 @@ public class ExceptAIClient {
         return payload;
     }
 
-    // ✅ Auto-detect Git SHA z CI/CD env vars lub git.properties
+    // ✅ Auto-detect Git SHA from CI/CD env vars or git.properties
     private String detectGitSha() {
-        // 1. Try CI/CD environment variables first (dla production builds)
+        // 1. Try CI/CD environment variables first (for production builds)
         String sha = detectFromCI();
         if (sha != null) {
             return sha;

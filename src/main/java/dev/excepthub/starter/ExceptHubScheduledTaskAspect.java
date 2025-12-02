@@ -1,4 +1,4 @@
-package ai.except.starter;
+package dev.excepthub.starter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,14 +13,14 @@ import java.io.StringWriter;
 
 /**
  * Aspect that automatically catches errors from @Scheduled methods
- * and sends them to ExceptAI without any user configuration
+ * and sends them to ExceptHub without any user configuration
  */
 @Aspect
 @Slf4j
 @RequiredArgsConstructor
-public class ExceptAIScheduledTaskAspect {
+public class ExceptHubScheduledTaskAspect {
 
-    private final ExceptAIClient exceptAIClient;
+    private final ExceptHubClient exceptHubClient;
 
     @Around("@annotation(scheduled)")
     public Object aroundScheduledTask(ProceedingJoinPoint joinPoint, Scheduled scheduled) throws Throwable {
@@ -32,7 +32,7 @@ public class ExceptAIScheduledTaskAspect {
                 joinPoint.getSignature().getDeclaringTypeName(),
                 joinPoint.getSignature().getName(), e);
 
-            // Send to ExceptAI
+            // Send to ExceptHub
             try {
                 MethodSignature signature = (MethodSignature) joinPoint.getSignature();
 
@@ -41,7 +41,7 @@ public class ExceptAIScheduledTaskAspect {
                 String cron = getCronExpression(scheduled);
                 String stackTrace = getStackTrace(e);
 
-                exceptAIClient.sendScheduledTaskError(
+                exceptHubClient.sendScheduledTaskError(
                     e,
                     stackTrace,
                     scheduledTaskClass,
@@ -50,7 +50,7 @@ public class ExceptAIScheduledTaskAspect {
                 );
 
             } catch (Exception sendError) {
-                log.error("Failed to send scheduled task error to ExceptAI", sendError);
+                log.error("Failed to send scheduled task error to ExceptHub", sendError);
             }
 
             // DO NOT rethrow - allow scheduler to continue

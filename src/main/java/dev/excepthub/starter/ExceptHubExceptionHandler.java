@@ -1,4 +1,4 @@
-package ai.except.starter;
+package dev.excepthub.starter;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +9,13 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @ControllerAdvice
 @RequiredArgsConstructor
-public class ExceptAIExceptionHandler {
+public class ExceptHubExceptionHandler {
 
-    private final ExceptAIClient client;
+    private final ExceptHubClient client;
 
     @ExceptionHandler(Exception.class)
     public void handleException(Exception exception, HttpServletRequest request) {
@@ -25,7 +24,7 @@ public class ExceptAIExceptionHandler {
         String stackTrace = getStackTraceAsString(exception);
         Map<String, Object> httpContext = extractHttpContext(request);
 
-        // Wyślij do ExceptAI w tle
+        // Send to ExceptHub in background
         new Thread(() -> client.sendError(exception, stackTrace, httpContext)).start();
 
         // Re-throw
