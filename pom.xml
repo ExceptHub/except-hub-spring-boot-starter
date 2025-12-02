@@ -33,9 +33,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/ExceptAI/except-ai-spring-boot-starter.git</connection>
-        <developerConnection>scm:git:ssh://github.com:ExceptAI/except-ai-spring-boot-starter.git</developerConnection>
-        <url>https://github.com/ExceptAI/except-ai-spring-boot-starter</url>
+        <connection>scm:git:git://github.com/ExceptHub/excepthub-spring-boot-starter.git</connection>
+        <developerConnection>scm:git:ssh://github.com:ExceptHub/excepthub-spring-boot-starter.git</developerConnection>
+        <url>https://github.com/ExceptHub/excepthub-spring-boot-starter</url>
     </scm>
     <dependencies>
         <dependency>
