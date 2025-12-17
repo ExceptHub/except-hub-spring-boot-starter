@@ -10,11 +10,11 @@
     </parent>
     <groupId>io.github.excepthub</groupId>
     <artifactId>excepthub-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.4</version>
 
     <name>excepthub-spring-boot-starter</name>
     <description>ExceptHub Spring Boot Starter - Zero-config error monitoring for Spring Boot applications</description>
-    <url>https://excepthub.pages.dev</url>
+    <url>https://excepthub.dev</url>
 
     <licenses>
         <license>
@@ -28,7 +28,7 @@
         <developer>
             <id>excepthub</id>
             <name>ExceptHub Team</name>
-            <email>hello@excepthub.pages.dev</email>
+            <email>team@excepthub.dev</email>
         </developer>
     </developers>
 

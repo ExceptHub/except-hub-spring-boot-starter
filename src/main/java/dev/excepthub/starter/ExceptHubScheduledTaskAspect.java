@@ -24,23 +24,28 @@ public class ExceptHubScheduledTaskAspect {
 
     @Around("@annotation(scheduled)")
     public Object aroundScheduledTask(ProceedingJoinPoint joinPoint, Scheduled scheduled) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        String scheduledTaskClass = signature.getDeclaringTypeName();
+        String scheduledTaskMethod = signature.getName();
+        String cron = getCronExpression(scheduled);
+
+        long startTime = System.currentTimeMillis();
+        boolean success = false;
+        String errorMessage = null;
+
         try {
-            return joinPoint.proceed();
+            Object result = joinPoint.proceed();
+            success = true;
+            return result;
         } catch (Exception e) {
+            errorMessage = e.getMessage();
+
             // Log error locally
-            log.error("❌ Error in scheduled task: {}.{}",
-                joinPoint.getSignature().getDeclaringTypeName(),
-                joinPoint.getSignature().getName(), e);
+            log.error("❌ Error in scheduled task: {}.{}", scheduledTaskClass, scheduledTaskMethod, e);
 
-            // Send to ExceptHub
+            // Send error to ExceptHub (creates Error entity for failures)
             try {
-                MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-
-                String scheduledTaskClass = signature.getDeclaringTypeName();
-                String scheduledTaskMethod = signature.getName();
-                String cron = getCronExpression(scheduled);
                 String stackTrace = getStackTrace(e);
-
                 exceptHubClient.sendScheduledTaskError(
                     e,
                     stackTrace,
@@ -48,13 +53,31 @@ public class ExceptHubScheduledTaskAspect {
                     scheduledTaskMethod,
                     cron
                 );
-
             } catch (Exception sendError) {
                 log.error("Failed to send scheduled task error to ExceptHub", sendError);
             }
 
             // DO NOT rethrow - allow scheduler to continue
             return null;
+        } finally {
+            // Always track execution (success or failure) for cron monitoring
+            long durationMs = System.currentTimeMillis() - startTime;
+            log.info("🔵 FINALLY BLOCK EXECUTED - sending cron execution: {}.{}, success={}, duration={}ms",
+                    scheduledTaskClass, scheduledTaskMethod, success, durationMs);
+
+            try {
+                exceptHubClient.sendCronExecution(
+                    scheduledTaskClass,
+                    scheduledTaskMethod,
+                    cron,
+                    success,
+                    durationMs,
+                    errorMessage
+                );
+            } catch (Exception e) {
+                // Silent fail - don't log cron tracking failures
+                log.debug("Failed to send cron execution to ExceptHub", e);
+            }
         }
     }
 

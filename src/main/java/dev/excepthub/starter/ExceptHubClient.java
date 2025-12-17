@@ -21,14 +21,27 @@ public class ExceptHubClient {
             return;
         }
 
+        // Check if API key is configured
+        if (properties.getApiKey() == null || properties.getApiKey().trim().isEmpty()) {
+            log.error("╔═══════════════════════════════════════════════════════════════════╗");
+            log.error("║  ❌ ExceptHub: API key not configured!                            ║");
+            log.error("║                                                                   ║");
+            log.error("║  Please add your API key to application.yml:                     ║");
+            log.error("║                                                                   ║");
+            log.error("║  excepthub:                                                       ║");
+            log.error("║    api-key: eak_your_api_key_here                                ║");
+            log.error("║                                                                   ║");
+            log.error("║  Get your API key from: https://app.excepthub.dev/               ║");
+            log.error("╚═══════════════════════════════════════════════════════════════════╝");
+            return;
+        }
+
         try {
             Map<String, Object> payload = buildPayload(exception, stackTrace, httpContext, null);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-API-Key", properties.getApiKey());
-
-            log.info(headers.get("X-API-Key").toString());
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
@@ -40,6 +53,44 @@ public class ExceptHubClient {
 
             log.debug("✅ Error sent to ExceptHub");
 
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            int statusCode = e.getStatusCode().value();
+
+            if (statusCode == 401 || statusCode == 403 || statusCode == 500) {
+                log.error("╔═══════════════════════════════════════════════════════════════════╗");
+                log.error("║  ❌ ExceptHub: Invalid API key!                                   ║");
+                log.error("║                                                                   ║");
+                log.error("║  Your API key '{}...' is not valid.{}║",
+                    properties.getApiKey().substring(0, Math.min(15, properties.getApiKey().length())),
+                    " ".repeat(Math.max(1, 31 - Math.min(15, properties.getApiKey().length()))));
+                log.error("║                                                                   ║");
+                log.error("║  Please check:                                                    ║");
+                log.error("║  1. You have created an account at https://app.excepthub.dev/    ║");
+                log.error("║  2. You have connected your GitHub repository                    ║");
+                log.error("║  3. You copied the correct API key from the dashboard            ║");
+                log.error("║                                                                   ║");
+                log.error("║  Error details: HTTP {} - {}{}║",
+                    statusCode,
+                    e.getStatusText(),
+                    " ".repeat(Math.max(1, 36 - e.getStatusText().length())));
+                log.error("╚═══════════════════════════════════════════════════════════════════╝");
+            } else if (statusCode == 429) {
+                log.warn("╔═══════════════════════════════════════════════════════════════════╗");
+                log.warn("║  ⚠️  ExceptHub: Monthly error limit exceeded                      ║");
+                log.warn("║                                                                   ║");
+                log.warn("║  You have reached your monthly error limit.                      ║");
+                log.warn("║  Errors will not be sent until next month.                       ║");
+                log.warn("║                                                                   ║");
+                log.warn("║  To increase your limit, upgrade your plan at:                   ║");
+                log.warn("║  https://app.excepthub.dev/                                       ║");
+                log.warn("╚═══════════════════════════════════════════════════════════════════╝");
+            } else {
+                log.error("❌ Failed to send error to ExceptHub: HTTP {} - {}",
+                    statusCode, e.getMessage());
+            }
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.error("❌ ExceptHub: Cannot connect to {}. Please check your internet connection.",
+                properties.getEndpoint());
         } catch (Exception e) {
             log.error("❌ Failed to send error to ExceptHub: {}", e.getMessage());
         }
@@ -48,6 +99,21 @@ public class ExceptHubClient {
     public void sendScheduledTaskError(Exception exception, String stackTrace,
                                       String scheduledTaskClass, String scheduledTaskMethod, String cron) {
         if (!properties.isEnabled()) {
+            return;
+        }
+
+        // Check if API key is configured
+        if (properties.getApiKey() == null || properties.getApiKey().trim().isEmpty()) {
+            log.error("╔═══════════════════════════════════════════════════════════════════╗");
+            log.error("║  ❌ ExceptHub: API key not configured!                            ║");
+            log.error("║                                                                   ║");
+            log.error("║  Please add your API key to application.yml:                     ║");
+            log.error("║                                                                   ║");
+            log.error("║  excepthub:                                                       ║");
+            log.error("║    api-key: eak_your_api_key_here                                ║");
+            log.error("║                                                                   ║");
+            log.error("║  Get your API key from: https://app.excepthub.dev/               ║");
+            log.error("╚═══════════════════════════════════════════════════════════════════╝");
             return;
         }
 
@@ -73,8 +139,106 @@ public class ExceptHubClient {
 
             log.debug("✅ Scheduled task error sent to ExceptHub: {} - {}", scheduledTaskClass, exception.getClass().getSimpleName());
 
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            int statusCode = e.getStatusCode().value();
+
+            if (statusCode == 401 || statusCode == 403 || statusCode == 500) {
+                log.error("╔═══════════════════════════════════════════════════════════════════╗");
+                log.error("║  ❌ ExceptHub: Invalid API key!                                   ║");
+                log.error("║                                                                   ║");
+                log.error("║  Your API key '{}...' is not valid.{}║",
+                    properties.getApiKey().substring(0, Math.min(15, properties.getApiKey().length())),
+                    " ".repeat(Math.max(1, 31 - Math.min(15, properties.getApiKey().length()))));
+                log.error("║                                                                   ║");
+                log.error("║  Please check:                                                    ║");
+                log.error("║  1. You have created an account at https://app.excepthub.dev/    ║");
+                log.error("║  2. You have connected your GitHub repository                    ║");
+                log.error("║  3. You copied the correct API key from the dashboard            ║");
+                log.error("║                                                                   ║");
+                log.error("║  Error details: HTTP {} - {}{}║",
+                    statusCode,
+                    e.getStatusText(),
+                    " ".repeat(Math.max(1, 36 - e.getStatusText().length())));
+                log.error("╚═══════════════════════════════════════════════════════════════════╝");
+            } else if (statusCode == 429) {
+                log.warn("╔═══════════════════════════════════════════════════════════════════╗");
+                log.warn("║  ⚠️  ExceptHub: Monthly error limit exceeded                      ║");
+                log.warn("║                                                                   ║");
+                log.warn("║  You have reached your monthly error limit.                      ║");
+                log.warn("║  Errors will not be sent until next month.                       ║");
+                log.warn("║                                                                   ║");
+                log.warn("║  To increase your limit, upgrade your plan at:                   ║");
+                log.warn("║  https://app.excepthub.dev/                                       ║");
+                log.warn("╚═══════════════════════════════════════════════════════════════════╝");
+            } else {
+                log.error("❌ Failed to send scheduled task error to ExceptHub: HTTP {} - {}",
+                    statusCode, e.getMessage());
+            }
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.error("❌ ExceptHub: Cannot connect to {}. Please check your internet connection.",
+                properties.getEndpoint());
         } catch (Exception e) {
             log.error("❌ Failed to send scheduled task error to ExceptHub: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Send cron execution event (success or failure) to ExceptHub
+     */
+    public void sendCronExecution(String scheduledTaskClass, String scheduledTaskMethod, String cron,
+                                   boolean success, long durationMs, String errorMessage) {
+        log.info("🟢 sendCronExecution called: enabled={}, apiKey={}",
+                properties.isEnabled(),
+                properties.getApiKey() != null ? "present" : "null");
+
+        if (!properties.isEnabled()) {
+            log.warn("⚠️ Cron execution NOT sent - ExceptHub is disabled");
+            return;
+        }
+
+        // Check if API key is configured
+        if (properties.getApiKey() == null || properties.getApiKey().trim().isEmpty()) {
+            log.warn("⚠️ Cron execution NOT sent - API key is missing");
+            return;
+        }
+
+        log.info("🚀 Sending cron execution to ExceptHub...");
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("service", properties.getService());
+            payload.put("environment", properties.getEnvironment());
+            payload.put("gitSha", detectGitSha());
+            payload.put("taskClass", scheduledTaskClass);
+            payload.put("taskMethod", scheduledTaskMethod);
+            payload.put("cronExpression", cron);
+            payload.put("success", success);
+            payload.put("durationMs", durationMs);
+            payload.put("errorMessage", errorMessage);
+            payload.put("executedAt", Instant.now().toString());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-API-Key", properties.getApiKey());
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+            // Use dedicated endpoint for cron executions
+            String cronEndpoint = properties.getEndpoint().replace("/errors", "/cron/executions");
+
+            restTemplate.postForEntity(
+                    cronEndpoint,
+                    request,
+                    String.class
+            );
+
+            log.debug("✅ Cron execution sent to ExceptHub: {}.{} - success={}, duration={}ms",
+                    scheduledTaskClass, scheduledTaskMethod, success, durationMs);
+
+        } catch (Exception e) {
+            // Log error for debugging (not silent fail)
+            log.error("❌ Failed to send cron execution to ExceptHub: {} (endpoint: {})", e.getMessage(),
+                    properties.getEndpoint().replace("/errors", "/cron/executions"));
+            log.error("Stack trace:", e);
         }
     }
 
