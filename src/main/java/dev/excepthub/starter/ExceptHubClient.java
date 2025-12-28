@@ -183,6 +183,63 @@ public class ExceptHubClient {
     }
 
     /**
+     * Send slow query to ExceptHub
+     */
+    public void sendSlowQuery(String query, long durationMs, String endpoint, String httpMethod) {
+        log.info("🔵 sendSlowQuery called: enabled={}, apiKey={}",
+                properties.isEnabled(),
+                properties.getApiKey() != null ? "present" : "null");
+
+        if (!properties.isEnabled()) {
+            log.warn("⚠️ ExceptHub disabled - slow query NOT sent");
+            return;
+        }
+
+        // Check if API key is configured
+        if (properties.getApiKey() == null || properties.getApiKey().trim().isEmpty()) {
+            log.warn("⚠️ API key missing - slow query NOT sent");
+            return;
+        }
+
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("service", properties.getService());
+            payload.put("environment", properties.getEnvironment());
+            payload.put("gitSha", detectGitSha());
+            payload.put("gitBranch", detectBranchName());
+            payload.put("query", query);
+            payload.put("durationMs", durationMs);
+            payload.put("endpoint", endpoint);
+            payload.put("httpMethod", httpMethod);
+            payload.put("timestamp", Instant.now().toString());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-API-Key", properties.getApiKey());
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+            // Use dedicated endpoint for slow queries
+            String slowQueryEndpoint = properties.getEndpoint().replace("/errors", "/slow-queries");
+
+            log.info("📡 Sending slow query to: {}", slowQueryEndpoint);
+            log.info("📦 Payload: service={}, env={}, duration={}ms",
+                    properties.getService(), properties.getEnvironment(), durationMs);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    slowQueryEndpoint,
+                    request,
+                    String.class
+            );
+
+            log.info("✅ Slow query sent successfully! Response: {}", response.getStatusCode());
+
+        } catch (Exception e) {
+            log.error("❌ Failed to send slow query to ExceptHub: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * Send cron execution event (success or failure) to ExceptHub
      */
     public void sendCronExecution(String scheduledTaskClass, String scheduledTaskMethod, String cron,
@@ -208,6 +265,7 @@ public class ExceptHubClient {
             payload.put("service", properties.getService());
             payload.put("environment", properties.getEnvironment());
             payload.put("gitSha", detectGitSha());
+            payload.put("gitBranch", detectBranchName());
             payload.put("taskClass", scheduledTaskClass);
             payload.put("taskMethod", scheduledTaskMethod);
             payload.put("cronExpression", cron);
@@ -250,6 +308,7 @@ public class ExceptHubClient {
         payload.put("service", properties.getService());
         payload.put("environment", properties.getEnvironment());
         payload.put("gitSha", detectGitSha()); // ✅ Auto-detect
+        payload.put("gitBranch", detectBranchName()); // ✅ Auto-detect branch
 
         Map<String, Object> exceptionData = new HashMap<>();
         exceptionData.put("type", exception.getClass().getName());

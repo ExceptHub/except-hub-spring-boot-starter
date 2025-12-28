@@ -10,5 +10,33 @@ public class ExceptHubProperties {
     private String apiKey;
     private String endpoint = "https://exceptai.onrender.com/api/v1/errors";
     private String service = "unknown";
-    private String environment = "production";
+
+    /**
+     * Environment name (e.g., "production", "development", "staging", "local").
+     * If not set, will be auto-detected from:
+     * 1. ENVIRONMENT env var
+     * 2. Spring active profile
+     * 3. Defaults to "unknown"
+     */
+    private String environment;
+
+    /**
+     * Slow query detection settings
+     */
+    private SlowQueries slowQueries = new SlowQueries();
+
+    @Data
+    public static class SlowQueries {
+        /**
+         * Threshold in milliseconds for detecting slow queries.
+         * Default: 500ms
+         */
+        private long thresholdMs = 500;
+
+        /**
+         * Whether slow query detection is enabled.
+         * Default: true (enabled if datasource-proxy is on classpath)
+         */
+        private boolean enabled = true;
+    }
 }

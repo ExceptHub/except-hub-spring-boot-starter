@@ -10,10 +10,10 @@
     </parent>
     <groupId>io.github.excepthub</groupId>
     <artifactId>excepthub-spring-boot-starter</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.10</version>
 
     <name>excepthub-spring-boot-starter</name>
-    <description>ExceptHub Spring Boot Starter - Zero-config error monitoring for Spring Boot applications</description>
+    <description>ExceptHub Spring Boot Starter - Zero-config error monitoring for Spring Boot applications with pattern detection</description>
     <url>https://excepthub.dev</url>
 
     <licenses>
@@ -59,6 +59,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>net.ttddyy</groupId>
+            <artifactId>datasource-proxy</artifactId>
+            <version>1.10</version>
             <optional>true</optional>
         </dependency>
         <dependency>

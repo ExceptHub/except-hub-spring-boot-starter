@@ -1,1 +1,2 @@
 dev.excepthub.starter.ExceptHubAutoConfiguration
+dev.excepthub.starter.ExceptHubDataSourceProxyConfig
