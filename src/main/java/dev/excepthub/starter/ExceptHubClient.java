@@ -309,6 +309,7 @@ public class ExceptHubClient {
         payload.put("environment", properties.getEnvironment());
         payload.put("gitSha", detectGitSha()); // ✅ Auto-detect
         payload.put("gitBranch", detectBranchName()); // ✅ Auto-detect branch
+        payload.put("release", detectRelease()); // ✅ Auto-detect release version
 
         Map<String, Object> exceptionData = new HashMap<>();
         exceptionData.put("type", exception.getClass().getName());
@@ -458,5 +459,71 @@ public class ExceptHubClient {
             log.info("ℹ️ Could not detect branch name: {}", e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Auto-detect release version from configuration or environment variables
+     */
+    private String detectRelease() {
+        // 1. Check if explicitly set in properties
+        if (properties.getRelease() != null && !properties.getRelease().isEmpty()) {
+            log.info("✅ Using configured release: {}", properties.getRelease());
+            return properties.getRelease();
+        }
+
+        // 2. Try EXCEPTHUB_RELEASE env var (recommended)
+        String release = System.getenv("EXCEPTHUB_RELEASE");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from EXCEPTHUB_RELEASE: {}", release);
+            return release;
+        }
+
+        // 3. Try RELEASE_VERSION env var (alternative)
+        release = System.getenv("RELEASE_VERSION");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from RELEASE_VERSION: {}", release);
+            return release;
+        }
+
+        // 4. Try VERSION env var (common in Docker)
+        release = System.getenv("VERSION");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from VERSION: {}", release);
+            return release;
+        }
+
+        // 5. Try platform-specific env vars (auto-injected by hosting platforms)
+        // Render
+        release = System.getenv("RENDER_GIT_COMMIT_SHA");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from RENDER_GIT_COMMIT_SHA (Render platform): {}", release);
+            return release;
+        }
+
+        // Railway
+        release = System.getenv("RAILWAY_GIT_COMMIT_SHA");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from RAILWAY_GIT_COMMIT_SHA (Railway platform): {}", release);
+            return release;
+        }
+
+        // Vercel
+        release = System.getenv("VERCEL_GIT_COMMIT_SHA");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from VERCEL_GIT_COMMIT_SHA (Vercel platform): {}", release);
+            return release;
+        }
+
+        // Heroku
+        release = System.getenv("HEROKU_SLUG_COMMIT");
+        if (release != null && !release.isEmpty()) {
+            log.info("✅ Detected release from HEROKU_SLUG_COMMIT (Heroku platform): {}", release);
+            return release;
+        }
+
+        // 6. Fallback: use git SHA from local workspace
+        String gitSha = detectGitSha();
+        log.info("ℹ️ No release version configured, using git SHA as fallback: {}", gitSha);
+        return gitSha;
     }
 }

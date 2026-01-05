@@ -21,6 +21,16 @@ public class ExceptHubProperties {
     private String environment;
 
     /**
+     * Release version (e.g., "1.2.3", "v2.0.0").
+     * If not set, will be auto-detected from:
+     * 1. EXCEPTHUB_RELEASE env var
+     * 2. RELEASE_VERSION env var
+     * 3. Git tag (if available)
+     * 4. Defaults to git commit SHA
+     */
+    private String release;
+
+    /**
      * Slow query detection settings
      */
     private SlowQueries slowQueries = new SlowQueries();

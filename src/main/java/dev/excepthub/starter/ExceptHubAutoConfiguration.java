@@ -91,8 +91,9 @@ public class ExceptHubAutoConfiguration {
     }
 
     @Bean
-    public ExceptHubExceptionHandler exceptHubExceptionHandler(ExceptHubClient client) {
-        return new ExceptHubExceptionHandler(client);
+    public ExceptHubExceptionAspect exceptHubExceptionAspect(ExceptHubClient client) {
+        log.info("✅ ExceptHub exception monitoring enabled (AOP-based)");
+        return new ExceptHubExceptionAspect(client);
     }
 
     @Bean
