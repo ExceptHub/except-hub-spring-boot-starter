@@ -32,8 +32,6 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
         try {
             long elapsedTime = execInfo.getElapsedTime();
 
-            log.debug("⏱️ Query executed in {}ms (threshold: {}ms)", elapsedTime, slowQueryThresholdMs);
-
             // Only track slow queries
             if (elapsedTime < slowQueryThresholdMs) {
                 return;
@@ -94,12 +92,8 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
                     httpMethod,
                     endpoint);
 
-            log.info("📤 About to send slow query to ExceptHub...");
-
             // Send slow query to ExceptHub backend
             exceptHubClient.sendSlowQuery(originalQuery, durationMs, endpoint, httpMethod);
-
-            log.info("✅ Finished sending slow query to ExceptHub");
 
         } catch (Exception e) {
             log.debug("Error processing slow query: {}", e.getMessage());

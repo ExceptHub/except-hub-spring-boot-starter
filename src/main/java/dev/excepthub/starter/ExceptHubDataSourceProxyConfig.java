@@ -51,19 +51,14 @@ public class ExceptHubDataSourceProxyConfig {
             ExceptHubClient exceptHubClient,
             ExceptHubProperties properties) {
         Logger logger = LoggerFactory.getLogger(ExceptHubDataSourceProxyConfig.class);
-        logger.info("🔧 Creating ExceptHubDataSourceProxyBeanPostProcessor...");
         return new BeanPostProcessor() {
             @Override
             @Nullable
             public Object postProcessAfterInitialization(Object bean, String beanName) {
-                logger.debug("🔍 Checking bean: {} (type: {})", beanName, bean.getClass().getName());
-
                 // Wrap DataSource with proxy (but not if it's already a proxy)
                 if (bean instanceof DataSource && !bean.getClass().getName().contains("Proxy")) {
-                    logger.info("✅ ExceptHub slow query detection enabled - wrapping DataSource bean: {}", beanName);
-                    logger.info("📊 Original DataSource class: {}", bean.getClass().getName());
+                    logger.info("✅ ExceptHub slow query detection enabled (threshold: {}ms)", properties.getSlowQueries().getThresholdMs());
                     DataSource proxied = createProxyDataSource((DataSource) bean, exceptHubClient, properties);
-                    logger.info("📊 Proxied DataSource class: {}", proxied.getClass().getName());
                     return proxied;
                 }
                 return bean;
@@ -75,25 +70,17 @@ public class ExceptHubDataSourceProxyConfig {
             DataSource dataSource,
             ExceptHubClient exceptHubClient,
             ExceptHubProperties properties) {
-        Logger logger = LoggerFactory.getLogger(ExceptHubDataSourceProxyConfig.class);
-        logger.info("🔨 Building DataSource proxy...");
         long threshold = properties.getSlowQueries().getThresholdMs();
-        logger.info("⏰ Slow query threshold: {}ms", threshold);
         ExceptHubSlowQueryListener slowQueryListener = new ExceptHubSlowQueryListener(exceptHubClient, threshold);
-        logger.info("🎧 Created SlowQueryListener");
 
         ChainListener chainListener = new ChainListener();
         chainListener.addListener(slowQueryListener);
-        logger.info("⛓️ Added listener to chain");
 
-        DataSource proxy = ProxyDataSourceBuilder
+        return ProxyDataSourceBuilder
                 .create(dataSource)
                 .name("ExceptHubSlowQueryDataSourceProxy")
                 .listener(chainListener)
                 .proxyResultSet() // Also proxy ResultSet for detailed tracking
                 .build();
-
-        logger.info("✅ DataSource proxy built successfully!");
-        return proxy;
     }
 }

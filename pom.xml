@@ -10,7 +10,7 @@
     </parent>
     <groupId>io.github.excepthub</groupId>
     <artifactId>excepthub-spring-boot-starter</artifactId>
-    <version>1.0.17</version>
+    <version>1.0.18</version>
 
     <name>excepthub-spring-boot-starter</name>
     <description>ExceptHub Spring Boot Starter - Zero-config error monitoring for Spring Boot applications with pattern detection</description>
