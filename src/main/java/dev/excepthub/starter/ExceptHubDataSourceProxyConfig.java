@@ -2,13 +2,18 @@ package dev.excepthub.starter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import net.ttddyy.dsproxy.listener.ChainListener;
 import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Role;
 import org.springframework.lang.Nullable;
 
 import javax.sql.DataSource;
@@ -18,12 +23,14 @@ import javax.sql.DataSource;
  * This enables slow query detection and tracking.
  *
  * Only enabled when:
- * 1. datasource-proxy library is on classpath (@ConditionalOnClass)
- * 2. excepthub.slow-queries.enabled=true (default: true)
+ * 1. ExceptHubClient bean is available (@ConditionalOnBean)
+ * 2. datasource-proxy library is on classpath (@ConditionalOnClass)
+ * 3. excepthub.slow-queries.enabled=true (default: true)
  */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
+@ConditionalOnBean(ExceptHubClient.class)
 @ConditionalOnClass(name = "net.ttddyy.dsproxy.support.ProxyDataSourceBuilder")
 @ConditionalOnProperty(prefix = "excepthub.slow-queries", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ExceptHubDataSourceProxyConfig {
@@ -34,22 +41,29 @@ public class ExceptHubDataSourceProxyConfig {
     /**
      * Wraps the default DataSource with a proxy that tracks query execution time.
      * BeanPostProcessor ensures this runs after DataSource bean is created.
+     *
+     * Marked as ROLE_INFRASTRUCTURE to avoid BeanPostProcessor warnings during startup.
+     * Uses static method to ensure early initialization without circular dependencies.
      */
     @Bean
-    public BeanPostProcessor exceptHubDataSourceProxyBeanPostProcessor() {
-        log.info("🔧 Creating ExceptHubDataSourceProxyBeanPostProcessor...");
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public static BeanPostProcessor exceptHubDataSourceProxyBeanPostProcessor(
+            ExceptHubClient exceptHubClient,
+            ExceptHubProperties properties) {
+        Logger logger = LoggerFactory.getLogger(ExceptHubDataSourceProxyConfig.class);
+        logger.info("🔧 Creating ExceptHubDataSourceProxyBeanPostProcessor...");
         return new BeanPostProcessor() {
             @Override
             @Nullable
             public Object postProcessAfterInitialization(Object bean, String beanName) {
-                log.debug("🔍 Checking bean: {} (type: {})", beanName, bean.getClass().getName());
+                logger.debug("🔍 Checking bean: {} (type: {})", beanName, bean.getClass().getName());
 
                 // Wrap DataSource with proxy (but not if it's already a proxy)
                 if (bean instanceof DataSource && !bean.getClass().getName().contains("Proxy")) {
-                    log.info("✅ ExceptHub slow query detection enabled - wrapping DataSource bean: {}", beanName);
-                    log.info("📊 Original DataSource class: {}", bean.getClass().getName());
-                    DataSource proxied = createProxyDataSource((DataSource) bean);
-                    log.info("📊 Proxied DataSource class: {}", proxied.getClass().getName());
+                    logger.info("✅ ExceptHub slow query detection enabled - wrapping DataSource bean: {}", beanName);
+                    logger.info("📊 Original DataSource class: {}", bean.getClass().getName());
+                    DataSource proxied = createProxyDataSource((DataSource) bean, exceptHubClient, properties);
+                    logger.info("📊 Proxied DataSource class: {}", proxied.getClass().getName());
                     return proxied;
                 }
                 return bean;
@@ -57,16 +71,20 @@ public class ExceptHubDataSourceProxyConfig {
         };
     }
 
-    private DataSource createProxyDataSource(DataSource dataSource) {
-        log.info("🔨 Building DataSource proxy...");
+    private static DataSource createProxyDataSource(
+            DataSource dataSource,
+            ExceptHubClient exceptHubClient,
+            ExceptHubProperties properties) {
+        Logger logger = LoggerFactory.getLogger(ExceptHubDataSourceProxyConfig.class);
+        logger.info("🔨 Building DataSource proxy...");
         long threshold = properties.getSlowQueries().getThresholdMs();
-        log.info("⏰ Slow query threshold: {}ms", threshold);
+        logger.info("⏰ Slow query threshold: {}ms", threshold);
         ExceptHubSlowQueryListener slowQueryListener = new ExceptHubSlowQueryListener(exceptHubClient, threshold);
-        log.info("🎧 Created SlowQueryListener");
+        logger.info("🎧 Created SlowQueryListener");
 
         ChainListener chainListener = new ChainListener();
         chainListener.addListener(slowQueryListener);
-        log.info("⛓️ Added listener to chain");
+        logger.info("⛓️ Added listener to chain");
 
         DataSource proxy = ProxyDataSourceBuilder
                 .create(dataSource)
@@ -75,7 +93,7 @@ public class ExceptHubDataSourceProxyConfig {
                 .proxyResultSet() // Also proxy ResultSet for detailed tracking
                 .build();
 
-        log.info("✅ DataSource proxy built successfully!");
+        logger.info("✅ DataSource proxy built successfully!");
         return proxy;
     }
 }
