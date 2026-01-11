@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.ttddyy.dsproxy.ExecutionInfo;
 import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.listener.QueryExecutionListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -26,6 +28,19 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
      * Maximum query length to send (prevent sending huge queries)
      */
     private static final int MAX_QUERY_LENGTH = 10000;
+
+    /**
+     * Flag to track if application has finished startup.
+     * During startup (DataInitializer, migrations), slow queries should not be reported.
+     * After startup, all slow queries (including cron jobs) should be reported.
+     */
+    private volatile boolean applicationReady = false;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        this.applicationReady = true;
+        log.debug("ExceptHub: Application ready, slow query tracking enabled for all contexts");
+    }
 
     @Override
     public void afterQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
@@ -69,6 +84,15 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
 
     private void trackSlowQuery(String originalQuery, long durationMs) {
         try {
+            // Skip queries during application startup (DataInitializer, migrations, etc.)
+            // These are one-time operations, not runtime performance issues
+            if (!applicationReady) {
+                log.debug("Skipping slow query tracking during startup: {}ms | {}",
+                        durationMs,
+                        originalQuery.length() > 100 ? originalQuery.substring(0, 100) + "..." : originalQuery);
+                return;
+            }
+
             // Truncate query if too long
             if (originalQuery.length() > MAX_QUERY_LENGTH) {
                 originalQuery = originalQuery.substring(0, MAX_QUERY_LENGTH) + "... [truncated]";
@@ -87,26 +111,22 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
                     httpMethod = request.getMethod();
                 }
             } catch (Exception e) {
-                // HTTP context not available (e.g., background task, scheduled job)
-                log.debug("HTTP context not available for slow query tracking");
+                // HTTP context not available (e.g., cron job, scheduled task)
+                log.debug("HTTP context not available for slow query tracking (cron/scheduled task)");
             }
 
-            // Skip queries without HTTP context (e.g., DataInitializer, startup migrations)
-            // These are one-time operations during app startup, not runtime performance issues
-            if (endpoint == null) {
-                log.debug("Skipping slow query tracking for non-HTTP context (startup/background): {}ms | {}",
-                        durationMs,
-                        originalQuery.length() > 100 ? originalQuery.substring(0, 100) + "..." : originalQuery);
-                return;
-            }
+            // Build context label for logging
+            String context = endpoint != null
+                ? String.format("%s %s", httpMethod, endpoint)
+                : "CRON/SCHEDULED";
 
-            log.warn("🐢 Slow query detected ({}ms): {} | Endpoint: {} {}",
+            log.warn("🐢 Slow query detected ({}ms): {} | Context: {}",
                     durationMs,
                     originalQuery.length() > 100 ? originalQuery.substring(0, 100) + "..." : originalQuery,
-                    httpMethod,
-                    endpoint);
+                    context);
 
             // Send slow query to ExceptHub backend
+            // endpoint and httpMethod can be null for cron jobs - backend will handle it
             exceptHubClient.sendSlowQuery(originalQuery, durationMs, endpoint, httpMethod);
 
         } catch (Exception e) {

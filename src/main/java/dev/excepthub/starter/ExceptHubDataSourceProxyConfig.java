@@ -57,7 +57,7 @@ public class ExceptHubDataSourceProxyConfig {
             public Object postProcessAfterInitialization(Object bean, String beanName) {
                 // Wrap DataSource with proxy (but not if it's already a proxy)
                 if (bean instanceof DataSource && !bean.getClass().getName().contains("Proxy")) {
-                    logger.info("✅ ExceptHub slow query detection enabled (threshold: {}ms)", properties.getSlowQueries().getThresholdMs());
+//                    logger.info("✅ ExceptHub slow query detection enabled (threshold: {}ms)", properties.getSlowQueries().getThresholdMs());
                     DataSource proxied = createProxyDataSource((DataSource) bean, exceptHubClient, properties);
                     return proxied;
                 }

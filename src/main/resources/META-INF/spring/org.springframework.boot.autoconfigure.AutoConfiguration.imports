@@ -1,2 +1,3 @@
 dev.excepthub.starter.ExceptHubAutoConfiguration
 dev.excepthub.starter.ExceptHubDataSourceProxyConfig
+dev.excepthub.starter.ExceptHubSlowQueryFilterConfig
