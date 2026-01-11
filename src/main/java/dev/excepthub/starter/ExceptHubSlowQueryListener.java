@@ -32,11 +32,6 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
         try {
             long elapsedTime = execInfo.getElapsedTime();
 
-            // Only track slow queries
-            if (elapsedTime < slowQueryThresholdMs) {
-                return;
-            }
-
             for (QueryInfo queryInfo : queryInfoList) {
                 String query = queryInfo.getQuery();
 
@@ -49,7 +44,17 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
                     continue;
                 }
 
-                trackSlowQuery(query, elapsedTime);
+                // ALWAYS record query in request context (for request-level aggregation)
+                // This enables detection of slow requests caused by many fast queries (N+1)
+                if (RequestQueryContext.isInitialized()) {
+                    RequestQueryContext.recordQuery(query, elapsedTime);
+                }
+
+                // ALSO track individual slow queries (backward compatibility)
+                // This catches single slow queries even outside HTTP request context
+                if (elapsedTime >= slowQueryThresholdMs) {
+                    trackSlowQuery(query, elapsedTime);
+                }
             }
         } catch (Exception e) {
             // Don't let query tracking errors break the application
@@ -86,6 +91,15 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
                 log.debug("HTTP context not available for slow query tracking");
             }
 
+            // Skip queries without HTTP context (e.g., DataInitializer, startup migrations)
+            // These are one-time operations during app startup, not runtime performance issues
+            if (endpoint == null) {
+                log.debug("Skipping slow query tracking for non-HTTP context (startup/background): {}ms | {}",
+                        durationMs,
+                        originalQuery.length() > 100 ? originalQuery.substring(0, 100) + "..." : originalQuery);
+                return;
+            }
+
             log.warn("🐢 Slow query detected ({}ms): {} | Endpoint: {} {}",
                     durationMs,
                     originalQuery.length() > 100 ? originalQuery.substring(0, 100) + "..." : originalQuery,
@@ -102,10 +116,27 @@ public class ExceptHubSlowQueryListener implements QueryExecutionListener {
 
     /**
      * Checks if query is an internal framework query (Hibernate metadata, etc.)
+     * or DDL operation (schema changes during startup).
      * We don't want to track these.
      */
     private boolean isFrameworkQuery(String query) {
         String upperQuery = query.trim().toUpperCase();
+
+        // Skip DDL operations (schema changes during startup)
+        // These are normal during application initialization, not runtime slow queries
+        if (upperQuery.startsWith("ALTER TABLE") ||
+            upperQuery.startsWith("ALTER INDEX") ||
+            upperQuery.startsWith("CREATE TABLE") ||
+            upperQuery.startsWith("CREATE INDEX") ||
+            upperQuery.startsWith("CREATE SEQUENCE") ||
+            upperQuery.startsWith("CREATE UNIQUE INDEX") ||
+            upperQuery.startsWith("DROP TABLE") ||
+            upperQuery.startsWith("DROP INDEX") ||
+            upperQuery.startsWith("DROP SEQUENCE") ||
+            upperQuery.startsWith("TRUNCATE TABLE") ||
+            upperQuery.startsWith("COMMENT ON")) {
+            return true;
+        }
 
         // Skip Hibernate sequence queries
         if (upperQuery.contains("NEXTVAL") || upperQuery.contains("SEQUENCE")) {
